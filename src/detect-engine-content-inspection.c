@@ -48,7 +48,6 @@
 #include "app-layer-dcerpc.h"
 
 #include "util-spm.h"
-#include "util-spm-bm.h"
 #include "util-debug.h"
 #include "util-print.h"
 
@@ -279,10 +278,8 @@ int DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThreadCtx
              * greater than sbuffer_len found is anyways NULL */
 
             /* do the actual search */
-            if (cd->flags & DETECT_CONTENT_NOCASE)
-                found = BoyerMooreNocase(cd->content, cd->content_len, sbuffer, sbuffer_len, cd->bm_ctx);
-            else
-                found = BoyerMoore(cd->content, cd->content_len, sbuffer, sbuffer_len, cd->bm_ctx);
+            found = SpmScan(cd->spm_ctx, det_ctx->spm_thread_ctx, sbuffer,
+                            sbuffer_len);
 
             /* next we evaluate the result in combination with the
              * negation flag. */
@@ -433,7 +430,7 @@ int DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThreadCtx
 
         /* if we have dce enabled we will have to use the endianness
          * specified by the dce header */
-        if (flags & DETECT_BYTETEST_DCE) {
+        if (flags & DETECT_BYTETEST_DCE && data != NULL) {
             DCERPCState *dcerpc_state = (DCERPCState *)data;
             /* enable the endianness flag temporarily.  once we are done
              * processing we reset the flags to the original value*/
@@ -459,7 +456,7 @@ int DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThreadCtx
 
         /* if we have dce enabled we will have to use the endianness
          * specified by the dce header */
-        if (flags & DETECT_BYTEJUMP_DCE) {
+        if (flags & DETECT_BYTEJUMP_DCE && data != NULL) {
             DCERPCState *dcerpc_state = (DCERPCState *)data;
             /* enable the endianness flag temporarily.  once we are done
              * processing we reset the flags to the original value*/
@@ -482,7 +479,7 @@ int DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThreadCtx
         /* if we have dce enabled we will have to use the endianness
          * specified by the dce header */
         if ((bed->flags & DETECT_BYTE_EXTRACT_FLAG_ENDIAN) &&
-            endian == DETECT_BYTE_EXTRACT_ENDIAN_DCE) {
+            endian == DETECT_BYTE_EXTRACT_ENDIAN_DCE && data != NULL) {
 
             DCERPCState *dcerpc_state = (DCERPCState *)data;
             /* enable the endianness flag temporarily.  once we are done
@@ -539,13 +536,9 @@ int DetectEngineContentInspection(DetectEngineCtx *de_ctx, DetectEngineThreadCtx
     }
     else if (sm->type == DETECT_LUA) {
         SCLogDebug("lua starting");
-        /* for flowvar gets and sets we need to know the flow's lock status */
-        int flow_lock = LUA_FLOW_LOCKED_BY_PARENT;
-        if (inspection_mode <= DETECT_ENGINE_CONTENT_INSPECTION_MODE_STREAM)
-            flow_lock = LUA_FLOW_NOT_LOCKED_BY_PARENT;
 
         if (DetectLuaMatchBuffer(det_ctx, s, sm, buffer, buffer_len,
-                    det_ctx->buffer_offset, f, flow_lock) != 1)
+                    det_ctx->buffer_offset, f) != 1)
         {
             SCLogDebug("lua no_match");
             goto no_match;

@@ -461,7 +461,7 @@ int AppLayerHandleTCPData(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx,
  *  If the protocol is yet unknown, the proto detection code is run first.
  *
  *  \param dp_ctx Thread app layer detect context
- *  \param f unlocked flow
+ *  \param f *locked* flow
  *  \param p UDP packet
  *
  *  \retval 0 ok
@@ -472,8 +472,6 @@ int AppLayerHandleUdp(ThreadVars *tv, AppLayerThreadCtx *tctx, Packet *p, Flow *
     SCEnter();
 
     int r = 0;
-
-    FLOWLOCK_WRLOCK(f);
 
     uint8_t flags = 0;
     if (p->flowflags & FLOW_PKT_TOSERVER) {
@@ -527,7 +525,6 @@ int AppLayerHandleUdp(ThreadVars *tv, AppLayerThreadCtx *tctx, Packet *p, Flow *
         }
     }
 
-    FLOWLOCK_UNLOCK(f);
     PACKET_PROFILING_APP_STORE(tctx, p);
 
     SCReturnInt(r);
@@ -654,11 +651,7 @@ void AppLayerRegisterGlobalCounters(void)
 /***** Unittests *****/
 
 #ifdef UNITTESTS
-
 #include "stream-tcp.h"
-#include "stream-tcp-private.h"
-#include "stream-tcp-reassemble.h"
-#include "stream-tcp-inline.h"
 #include "stream-tcp-util.h"
 #include "stream.h"
 #include "util-unittest.h"
@@ -680,7 +673,6 @@ static int AppLayerTest01(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -692,6 +684,7 @@ static int AppLayerTest01(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -920,7 +913,6 @@ static int AppLayerTest02(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -932,6 +924,7 @@ static int AppLayerTest02(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     /* handshake */
     tcph.th_win = htons(5480);
@@ -1209,7 +1202,6 @@ static int AppLayerTest03(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -1221,6 +1213,7 @@ static int AppLayerTest03(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -1448,7 +1441,6 @@ static int AppLayerTest04(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -1460,6 +1452,7 @@ static int AppLayerTest04(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     /* handshake */
     tcph.th_win = htons(5480);
@@ -1736,7 +1729,6 @@ static int AppLayerTest05(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -1748,6 +1740,7 @@ static int AppLayerTest05(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -1976,7 +1969,6 @@ static int AppLayerTest06(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -1988,6 +1980,7 @@ static int AppLayerTest06(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -2192,7 +2185,6 @@ static int AppLayerTest07(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -2204,6 +2196,7 @@ static int AppLayerTest07(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -2432,7 +2425,6 @@ static int AppLayerTest08(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -2444,6 +2436,7 @@ static int AppLayerTest08(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -2674,7 +2667,6 @@ static int AppLayerTest09(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -2686,6 +2678,7 @@ static int AppLayerTest09(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -2955,7 +2948,6 @@ static int AppLayerTest10(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -2967,6 +2959,7 @@ static int AppLayerTest10(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -3212,7 +3205,6 @@ static int AppLayerTest11(void)
     memset(p, 0, SIZE_OF_PACKET);
     memset (&f, 0, sizeof(Flow));
     memset(&tv, 0, sizeof (ThreadVars));
-    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
     memset(&tcph, 0, sizeof (TCPHdr));
 
     FLOW_INITIALIZE(&f);
@@ -3224,6 +3216,7 @@ static int AppLayerTest11(void)
     int ret = 0;
 
     StreamTcpInitConfig(TRUE);
+    StreamTcpThreadInit(&tv, NULL, (void **)&stt);
 
     tcph.th_win = htons(5480);
     tcph.th_flags = TH_SYN;
@@ -3503,17 +3496,17 @@ void AppLayerUnittestsRegister(void)
 {
     SCEnter();
 
-    UtRegisterTest("AppLayerTest01", AppLayerTest01, 1);
-    UtRegisterTest("AppLayerTest02", AppLayerTest02, 1);
-    UtRegisterTest("AppLayerTest03", AppLayerTest03, 1);
-    UtRegisterTest("AppLayerTest04", AppLayerTest04, 1);
-    UtRegisterTest("AppLayerTest05", AppLayerTest05, 1);
-    UtRegisterTest("AppLayerTest06", AppLayerTest06, 1);
-    UtRegisterTest("AppLayerTest07", AppLayerTest07, 1);
-    UtRegisterTest("AppLayerTest08", AppLayerTest08, 1);
-    UtRegisterTest("AppLayerTest09", AppLayerTest09, 1);
-    UtRegisterTest("AppLayerTest10", AppLayerTest10, 1);
-    UtRegisterTest("AppLayerTest11", AppLayerTest11, 1);
+    UtRegisterTest("AppLayerTest01", AppLayerTest01);
+    UtRegisterTest("AppLayerTest02", AppLayerTest02);
+    UtRegisterTest("AppLayerTest03", AppLayerTest03);
+    UtRegisterTest("AppLayerTest04", AppLayerTest04);
+    UtRegisterTest("AppLayerTest05", AppLayerTest05);
+    UtRegisterTest("AppLayerTest06", AppLayerTest06);
+    UtRegisterTest("AppLayerTest07", AppLayerTest07);
+    UtRegisterTest("AppLayerTest08", AppLayerTest08);
+    UtRegisterTest("AppLayerTest09", AppLayerTest09);
+    UtRegisterTest("AppLayerTest10", AppLayerTest10);
+    UtRegisterTest("AppLayerTest11", AppLayerTest11);
 
     SCReturn;
 }

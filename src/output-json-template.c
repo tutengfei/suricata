@@ -15,6 +15,20 @@
  * 02110-1301, USA.
  */
 
+/*
+ * TODO: Update \author in this file and in output-json-template.h.
+ * TODO: Remove SCLogNotice statements, or convert to debug.
+ * TODO: Implement your app-layers logging.
+ */
+
+/**
+ * \file
+ *
+ * \author FirstName LastName <yourname@domain>
+ *
+ * Implement JSON/eve logging app-layer Template.
+ */
+
 #include "suricata-common.h"
 #include "debug.h"
 #include "detect.h"
@@ -39,7 +53,6 @@
 #include "app-layer-template.h"
 
 #ifdef HAVE_LIBJANSSON
-#include <jansson.h>
 
 typedef struct LogTemplateFileCtx_ {
     LogFileCtx *file_ctx;
@@ -57,7 +70,6 @@ static int JsonTemplateLogger(ThreadVars *tv, void *thread_data,
 {
     TemplateTransaction *templatetx = tx;
     LogTemplateLogThread *thread = thread_data;
-    MemBuffer *buffer = thread->buffer;
     json_t *js, *templatejs;
 
     SCLogNotice("Logging template transaction %"PRIu64".", templatetx->tx_id);
@@ -91,8 +103,8 @@ static int JsonTemplateLogger(ThreadVars *tv, void *thread_data,
 
     json_object_set_new(js, "template", templatejs);
 
-    MemBufferReset(buffer);
-    OutputJSONBuffer(js, thread->templatelog_ctx->file_ctx, buffer);
+    MemBufferReset(thread->buffer);
+    OutputJSONBuffer(js, thread->templatelog_ctx->file_ctx, &thread->buffer);
 
     json_decref(js);
     return TM_ECODE_OK;
@@ -148,7 +160,7 @@ static TmEcode JsonTemplateLogThreadInit(ThreadVars *t, void *initdata, void **d
     }
 
     if (initdata == NULL) {
-        SCLogDebug("Error getting context for Template.  \"initdata\" is NULL.");
+        SCLogDebug("Error getting context for EveLogTemplate.  \"initdata\" is NULL.");
         SCFree(thread);
         return TM_ECODE_FAILED;
     }
@@ -180,10 +192,11 @@ static TmEcode JsonTemplateLogThreadDeinit(ThreadVars *t, void *data)
 
 void TmModuleJsonTemplateLogRegister(void)
 {
+    /* TEMPLATE_START_REMOVE */
     if (ConfGetNode("app-layer.protocols.template") == NULL) {
         return;
     }
-
+    /* TEMPLATE_END_REMOVE */
     tmm_modules[TMM_JSONTEMPLATELOG].name = "JsonTemplateLog";
     tmm_modules[TMM_JSONTEMPLATELOG].ThreadInit = JsonTemplateLogThreadInit;
     tmm_modules[TMM_JSONTEMPLATELOG].ThreadDeinit = JsonTemplateLogThreadDeinit;

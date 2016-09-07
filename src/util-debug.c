@@ -55,6 +55,8 @@ SCEnumCharMap sc_log_level_map[ ] = {
     { "Warning",        SC_LOG_WARNING },
     { "Notice",         SC_LOG_NOTICE },
     { "Info",           SC_LOG_INFO },
+    { "Perf",           SC_LOG_PERF },
+    { "Config",         SC_LOG_CONFIG },
     { "Debug",          SC_LOG_DEBUG },
     { NULL,             -1 }
 };
@@ -189,6 +191,7 @@ static inline void SCLogPrintToSyslog(int syslog_log_level, const char *msg)
 }
 
 #ifdef HAVE_LIBJANSSON
+#include <jansson.h>
 /**
  */
 int SCLogMessageJSON(struct timeval *tval, char *buffer, size_t buffer_size,
@@ -232,12 +235,7 @@ int SCLogMessageJSON(struct timeval *tval, char *buffer, size_t buffer_size,
 
     char *js_s = json_dumps(js,
             JSON_PRESERVE_ORDER|JSON_COMPACT|JSON_ENSURE_ASCII|
-#ifdef JSON_ESCAPE_SLASH
-            JSON_ESCAPE_SLASH
-#else
-            0
-#endif
-            );
+            JSON_ESCAPE_SLASH);
     snprintf(buffer, buffer_size, "%s", js_s);
     free(js_s);
 
@@ -479,8 +477,12 @@ static SCError SCLogMessageGetBuffer(
         }
     }
 
-    char *xyellow = error_code > SC_OK ? yellow : "";
-    cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s%s%s", xyellow, message, reset);
+    char *hi = "";
+    if (error_code > SC_OK)
+        hi = red;
+    else if (log_level <= SC_LOG_NOTICE)
+        hi = yellow;
+    cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - buffer), "%s%s%s", hi, message, reset);
     if (cw < 0)
         goto error;
     temp += cw;
@@ -717,6 +719,7 @@ error:
         fclose(iface_ctx->file_d);
         iface_ctx->file_d = NULL;
     }
+    SCFree(iface_ctx);
     return NULL;
 }
 
@@ -1641,11 +1644,11 @@ void SCLogRegisterTests()
 
 #ifdef UNITTESTS
 
-    UtRegisterTest("SCLogTestInit01", SCLogTestInit01, 1);
-    UtRegisterTest("SCLogTestInit02", SCLogTestInit02, 1);
-    UtRegisterTest("SCLogTestInit03", SCLogTestInit03, 1);
-    UtRegisterTest("SCLogTestInit04", SCLogTestInit04, 1);
-    UtRegisterTest("SCLogTestInit05", SCLogTestInit05, 1);
+    UtRegisterTest("SCLogTestInit01", SCLogTestInit01);
+    UtRegisterTest("SCLogTestInit02", SCLogTestInit02);
+    UtRegisterTest("SCLogTestInit03", SCLogTestInit03);
+    UtRegisterTest("SCLogTestInit04", SCLogTestInit04);
+    UtRegisterTest("SCLogTestInit05", SCLogTestInit05);
 
 #endif /* UNITTESTS */
 

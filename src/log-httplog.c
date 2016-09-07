@@ -542,7 +542,7 @@ TmEcode LogHttpLogThreadInit(ThreadVars *t, void *initdata, void **data)
 
     if(initdata == NULL)
     {
-        SCLogDebug("Error getting context for HTTPLog.  \"initdata\" argument NULL");
+        SCLogDebug("Error getting context for LogHTTPLog.  \"initdata\" argument NULL");
         SCFree(aft);
         return TM_ECODE_FAILED;
     }
@@ -582,7 +582,7 @@ void LogHttpLogExitPrintStats(ThreadVars *tv, void *data)
         return;
     }
 
-    SCLogInfo("HTTP logger logged %" PRIu32 " requests", aft->uri_cnt);
+    //SCLogInfo("HTTP logger logged %" PRIu32 " requests", aft->uri_cnt);
 }
 
 /** \brief Create a new http log LogFileCtx.

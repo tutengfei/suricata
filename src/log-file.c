@@ -303,7 +303,7 @@ static void LogFileWriteJsonRecord(LogFileLogThread *aft, const Packet *p, const
             break;
     }
     fprintf(fp, "\"stored\": %s, ", ff->flags & FILE_STORED ? "true" : "false");
-    fprintf(fp, "\"size\": %"PRIu64" ", ff->size);
+    fprintf(fp, "\"size\": %"PRIu64" ", FileSize(ff));
     fprintf(fp, "}\n");
     fflush(fp);
     SCMutexUnlock(&aft->file_ctx->fp_mutex);
@@ -415,6 +415,12 @@ static OutputCtx *LogFileLogInitCtx(ConfNode *conf)
 
     output_ctx->data = logfile_ctx;
     output_ctx->DeInit = LogFileLogDeInitCtx;
+
+    const char *force_filestore = ConfNodeLookupChildValue(conf, "force-filestore");
+    if (force_filestore != NULL && ConfValIsTrue(force_filestore)) {
+        FileForceFilestoreEnable();
+        SCLogInfo("forcing filestore of all files");
+    }
 
     const char *force_magic = ConfNodeLookupChildValue(conf, "force-magic");
     if (force_magic != NULL && ConfValIsTrue(force_magic)) {

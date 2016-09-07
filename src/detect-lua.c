@@ -165,8 +165,8 @@ void DetectLuaRegister(void)
 #define DATATYPE_DNS_RESPONSE               (1<<17)
 
 #define DATATYPE_TLS                        (1<<18)
-
 #define DATATYPE_SSH                        (1<<19)
+#define DATATYPE_SMTP                       (1<<20)
 
 #ifdef HAVE_LUAJIT
 static void *LuaStatePoolAlloc(void)
@@ -293,7 +293,7 @@ void LuaDumpStack(lua_State *state)
 
 int DetectLuaMatchBuffer(DetectEngineThreadCtx *det_ctx, Signature *s, SigMatch *sm,
         uint8_t *buffer, uint32_t buffer_len, uint32_t offset,
-        Flow *f, int flow_lock)
+        Flow *f)
 {
     SCEnter();
     int ret = 0;
@@ -310,6 +310,10 @@ int DetectLuaMatchBuffer(DetectEngineThreadCtx *det_ctx, Signature *s, SigMatch 
         SCReturnInt(0);
 
     /* setup extension data for use in lua c functions */
+    int flow_lock = (f != NULL) ? /* if we have a flow, it's locked */
+        LUA_FLOW_LOCKED_BY_PARENT :
+        LUA_FLOW_NOT_LOCKED_BY_PARENT;
+
     LuaExtensionsMatchSetup(tluajit->luastate, luajit, det_ctx,
             f, flow_lock, /* no packet in the ctx */NULL, 0);
 
@@ -418,8 +422,14 @@ static int DetectLuaMatch (ThreadVars *tv, DetectEngineThreadCtx *det_ctx,
     else if (p->flowflags & FLOW_PKT_TOCLIENT)
         flags = STREAM_TOCLIENT;
 
+    LuaStateSetThreadVars(tluajit->luastate, tv);
+
+    int flow_lock = (p->flow != NULL) ? /* if we have a flow, it's locked */
+        LUA_FLOW_LOCKED_BY_PARENT :
+        LUA_FLOW_NOT_LOCKED_BY_PARENT;
+
     LuaExtensionsMatchSetup(tluajit->luastate, luajit, det_ctx,
-            p->flow, /* flow not locked */LUA_FLOW_NOT_LOCKED_BY_PARENT, p, flags);
+            p->flow, flow_lock, p, flags);
 
     if ((tluajit->flags & DATATYPE_PAYLOAD) && p->payload_len == 0)
         SCReturnInt(0);
@@ -429,10 +439,7 @@ static int DetectLuaMatch (ThreadVars *tv, DetectEngineThreadCtx *det_ctx,
         if (p->flow == NULL)
             SCReturnInt(0);
 
-        FLOWLOCK_RDLOCK(p->flow);
-        int alproto = p->flow->alproto;
-        FLOWLOCK_UNLOCK(p->flow);
-
+        AppProto alproto = p->flow->alproto;
         if (tluajit->alproto != alproto)
             SCReturnInt(0);
     }
@@ -451,7 +458,6 @@ static int DetectLuaMatch (ThreadVars *tv, DetectEngineThreadCtx *det_ctx,
         lua_settable(tluajit->luastate, -3);
     }
     if (tluajit->alproto == ALPROTO_HTTP) {
-        FLOWLOCK_RDLOCK(p->flow);
         HtpState *htp_state = p->flow->alstate;
         if (htp_state != NULL && htp_state->connp != NULL) {
             htp_tx_t *tx = NULL;
@@ -473,7 +479,6 @@ static int DetectLuaMatch (ThreadVars *tv, DetectEngineThreadCtx *det_ctx,
                 }
             }
         }
-        FLOWLOCK_UNLOCK(p->flow);
     }
 
     int retval = lua_pcall(tluajit->luastate, 1, 1, 0);
@@ -1022,6 +1027,12 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld)
 
             ld->flags |= DATATYPE_SSH;
 
+        } else if (strncmp(k, "smtp", 4) == 0 && strcmp(v, "true") == 0) {
+
+            ld->alproto = ALPROTO_SMTP;
+
+            ld->flags |= DATATYPE_SMTP;
+
         } else {
             SCLogError(SC_ERR_LUA_ERROR, "unsupported data type %s", k);
             goto error;
@@ -1120,6 +1131,8 @@ static int DetectLuaSetup (DetectEngineCtx *de_ctx, Signature *s, char *str)
     } else if (luajit->alproto == ALPROTO_TLS) {
         SigMatchAppendSMToList(s, sm, DETECT_SM_LIST_AMATCH);
     } else if (luajit->alproto == ALPROTO_SSH) {
+        SigMatchAppendSMToList(s, sm, DETECT_SM_LIST_AMATCH);
+    } else if (luajit->alproto == ALPROTO_SMTP) {
         SigMatchAppendSMToList(s, sm, DETECT_SM_LIST_AMATCH);
     } else {
         SCLogError(SC_ERR_LUA_ERROR, "luajit can't be used with protocol %s",
@@ -2076,12 +2089,12 @@ end:
 void DetectLuaRegisterTests(void)
 {
 #ifdef UNITTESTS
-    UtRegisterTest("LuaMatchTest01", LuaMatchTest01, 1);
-    UtRegisterTest("LuaMatchTest02", LuaMatchTest02, 1);
-    UtRegisterTest("LuaMatchTest03", LuaMatchTest03, 1);
-    UtRegisterTest("LuaMatchTest04", LuaMatchTest04, 1);
-    UtRegisterTest("LuaMatchTest05", LuaMatchTest05, 1);
-    UtRegisterTest("LuaMatchTest06", LuaMatchTest06, 1);
+    UtRegisterTest("LuaMatchTest01", LuaMatchTest01);
+    UtRegisterTest("LuaMatchTest02", LuaMatchTest02);
+    UtRegisterTest("LuaMatchTest03", LuaMatchTest03);
+    UtRegisterTest("LuaMatchTest04", LuaMatchTest04);
+    UtRegisterTest("LuaMatchTest05", LuaMatchTest05);
+    UtRegisterTest("LuaMatchTest06", LuaMatchTest06);
 #endif
 }
 
